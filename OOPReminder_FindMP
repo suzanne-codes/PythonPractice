@@ -1,0 +1,130 @@
+import pandas as pd
+
+# Person is a parent class with init() constructor function and 2 other public methods
+class Person:
+    def __init__(self, firstname, surname):
+        self.firstname = firstname
+        self.surname = surname
+
+    def name(self):
+        return self.firstname + ' ' + self.surname
+
+    def print_details(self):
+        print(f'Name: {self.name()}')
+
+# Polymorphism - party also has a function called print_details. Its output depends on the class to which the object it is called from belongs.
+class Party:
+    # Use default values so that they do not always need to be entered
+    def __init__(self, party_name, left_right = 0.0, authoritarian_liberal = 0.0):
+        self.party_name = party_name
+        self.left_right = left_right
+        self.authoritarian_liberal = authoritarian_liberal
+
+    def print_details(self):
+        print('Party:')
+        print(f'Party Name: {self.party_name}')
+        print(f'Left / Right: {self.left_right}')
+        print(f'Authoritarian / Liberal: {self.authoritarian_liberal}')
+
+class Constituency:
+    def __init__(self, constituency_name, number_of_electors = 0):
+        self.constituency_name = constituency_name
+        self.number_of_electors = number_of_electors
+
+    def print_details(self):
+        print('Constituency:')
+        print(f'Name: {self.constituency_name}')
+        print(f'No. of electors: {self.number_of_electors}')
+
+# Candidate is a child class that inherits from the Person class
+class Candidate(Person):
+    def __init__(self, firstname, surname, party, constituency, number_of_votes = 0):
+        # Use the super() function to return the parent Person object
+        super().__init__(firstname, surname)
+        # Avoid multiple inheritance - give Candidate a Party and Constituency property without inheriting these classes
+        self.candidate_party = party
+        self.candidate_constituency = constituency
+        self.number_of_votes = number_of_votes
+    
+    def proportion_of_electors(self):
+        if self.candidate_constituency.number_of_electors == 0:
+            return 0
+        else:
+            return self.number_of_votes / self.candidate_constituency.number_of_electors
+
+    def print_details(self):
+        print('Candidate:')
+        super().print_details()  
+        self.candidate_party.print_details()
+        self.candidate_constituency.print_details()
+        print(f'Number of votes: {self.number_of_votes}')
+        print(f'Proportion of electors: {self.proportion_of_electors(): %}')
+
+# Candidates is a class where the objects are arrays of candidates
+class Candidates:
+    def __init__(self, candidates):
+        self.candidates = candidates
+
+    # use the pandas dataframe to make it easier to manipulate the data in candidates array
+    def candidates_df(self):
+        candidates_df = pd.DataFrame([vars(c) for c in self.candidates])
+        return candidates_df
+    
+    # Use lambda function to calculate vote percentage (note difference between proportion of electors (total is total electorate) and vote percentage (total is total votes, allowing for lower than 100% turnout))
+    def calculate_vote_percentage(self):
+        candidates_perc_df = self.candidates_df()
+        total_votes = max(candidates_perc_df['number_of_votes'].sum(),1)
+        candidates_perc_df['vote_percentage'] = candidates_perc_df['number_of_votes'].apply(lambda x:(x/total_votes) * 100) # Use lambda function for concise way to find vote_percentage
+        return candidates_perc_df
+    
+    def sort_by_votes(self):
+        sorted_candidates_df = self.calculate_vote_percentage().sort_values(by = 'number_of_votes', ascending = False)
+        return sorted_candidates_df
+    
+    # Function to find candidate from candidates with highest number of votes. 
+    def find_mp(self):
+        candidates_df = self.sort_by_votes()
+        # Allow for case of empty list
+        if candidates_df.empty:
+            print ('No candidates')
+            return None
+
+        # If there is only one candidate, they win by default
+        if len(candidates_df.index) == 1:
+            mp = self.candidates[0]
+            return mp
+
+        # Case where there is a unique winner
+        if candidates_df.iloc[0]['number_of_votes'] > candidates_df.iloc[1]['number_of_votes']:
+            mp = self.candidates[candidates_df.index[0]]
+            return mp
+        else: # Case where there are multiple winners
+            print('No outright winner.')
+            return None
+        
+   
+# Example usage
+# Define objects in Party class
+green_party = Party('The Green Party', -5, -4)
+conservative_party = Party('Conservative', 4,3)
+lib_dem_party = Party('Liberal Democrats',-2,-3)
+
+# Define objects in Constituency class
+newbury_constituency = Constituency('Newbury', 60000)
+
+# Define objects in Candidate class
+alex_candidate = Candidate('Alex','Berry',green_party, newbury_constituency, 2000)
+caroline_candidate = Candidate('Caroline', 'Drake', conservative_party, newbury_constituency, 30000)
+eric_candidate = Candidate('Eric','Faulks', lib_dem_party,newbury_constituency,20000)
+
+# Define array of candidates
+newbury_candidates = Candidates([alex_candidate, caroline_candidate, eric_candidate])
+
+# Print sorted candidates with details in dataframe
+newbury_candidates_df = newbury_candidates.sort_by_votes()
+print(newbury_candidates_df)
+
+# Find MP (candidate with most votes) and print their details
+newbury_mp = newbury_candidates.find_mp()
+print(f'{newbury_mp.name()} is the winner!') # Encapsulation - access the name() of the newbury_mp object in the Person class, inherited from the Candidate class
+print(newbury_mp.print_details())
